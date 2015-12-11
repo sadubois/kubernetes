@@ -1,0 +1,67 @@
+#!/bin/bash
+
+if [ "$1" == "" ]; then 
+  echo "Usage: $0 [start|stop|status|test]"
+  exit
+fi
+
+printcmd () {
+  echo ""
+  echo "=> $*"
+  $*
+}
+
+if [ "$1" == "status" ]; then 
+  printcmd "kubectl get nodes"
+  printcmd "kubectl get pods"
+  printcmd "kubectl get pods --all-namespaces"
+  printcmd "kubectl get rc"
+  printcmd "kubectl get services"
+  printcmd ""
+
+fi
+
+if [ "$1" == "describe" ]; then 
+  for pod in `kubectl get pods | grep "^redis-" | awk '{ print $1 }'`; do
+    printcmd "kubectl describe pods/$pod"
+  done
+fi
+
+if [ "$1" == "scale" ]; then 
+  kubectl scale rc redis --replicas=3
+  kubectl scale rc redis-sentinel --replicas=3
+fi
+
+if [ "$1" == "start" ]; then 
+  kubectl create -f redis-master.yaml
+  kubectl create -f redis-sentinel-service.yaml
+  kubectl create -f redis-controller.yaml
+  kubectl create -f redis-sentinel-controller.yaml
+fi
+
+if [ "$1" == "stop" ]; then 
+  kubectl delete -f redis-sentinel-controller.yaml
+  kubectl delete -f redis-controller.yaml
+  kubectl delete -f redis-sentinel-service.yaml
+  kubectl delete -f redis-master.yaml
+fi
+
+if [ "$1" == "testold" ]; then 
+  MIP=`kubectl get services | grep "^redis-master " | awk '{ print $(NF-1) }'`
+  SIP=`kubectl get services | grep "^redis-slave " | awk '{ print $(NF-1) }'`
+
+  MPOD=`kubectl get pods | grep "^redis-master-" | awk '{ print $1 }'`
+  SPOD=`kubectl get pods | grep "^redis-slave-" | awk '{ print $1 }'`
+
+  echo "kubectl exec $MPOD -- redis-cli -h $MIP SET a 10"
+  for n in $SPOD; do
+    echo "kubectl exec $n -- redis-cli -h $SIP GET a "
+  done
+
+  #kubectl exec redis-master-km6dw  -- redis-cli -h 10.254.187.125 SET a 10
+  #kubectl exec redis-master-km6dw  -- redis-cli -h 10.254.187.125 GET a
+  #kubectl exec redis-master-km6dw  -- redis-cli -h 10.254.164.173 GET a
+fi
+
+
+

@@ -1,0 +1,7 @@
+# Reliable, Scalable Redis on Kubernetes
+http://kubernetes.io/v1.0/examples/redis/README.html
+
+# Container
+docker pull docker pull kubernetes/redis
+
+
